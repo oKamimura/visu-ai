@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VisualIA — Produto → Modelo com IA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-main:      #0F0E0D;
+      --bg-panel:     #161412;
+      --bg-card:      #1E1B18;
+      --border:       #2E2A26;
+      --accent:       #D4B896;
+      --accent-hover: #C9A98A;
+      --text-main:    #F5F0EA;
+      --text-sec:     #7A6F66;
+      --green:        #4CAF50;
+      --red:          #E57373;
+      --font-ui:      'Inter', sans-serif;
+      --font-deco:    'Cormorant Garamond', serif;
+      --panel-w:      400px;
+      --radius:       10px;
+      --radius-sm:    6px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      overflow: hidden;
+    }
+
+    /* ── LAYOUT ─────────────────────────────────── */
+    #app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── PAINEL ESQUERDO ────────────────────────── */
+    #sidebar {
+      width: var(--panel-w);
+      min-width: var(--panel-w);
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-track { background: transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .sidebar-inner { padding: 24px 20px 32px; display: flex; flex-direction: column; gap: 24px; }
+
+    /* ── LOGO / HEADER ──────────────────────────── */
+    .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo-block {}
+    .logo-name {
+      font-family: var(--font-deco);
+      font-size: 26px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-sec);
+      letter-spacing: 0.5px;
+      margin-top: 1px;
+    }
+
+    /* Mock toggle */
+    .mock-toggle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .mock-toggle span { font-size: 11px; color: var(--text-sec); }
+    .mock-toggle span.active-label { color: #F9A825; }
+
+    /* ── SECTION LABEL ──────────────────────────── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--text-sec);
+      margin-bottom: 10px;
+    }
+
+    /* ── API KEY ────────────────────────────────── */
+    .api-key-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .input-wrap {
+      position: relative;
+      flex: 1;
+    }
+    .input-wrap input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      padding: 9px 36px 9px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-wrap input:focus { border-color: var(--accent); }
+    .eye-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-sec);
+      display: flex;
+      align-items: center;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .eye-btn:hover { color: var(--text-main); }
+
+    .api-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 7px;
+      font-size: 11px;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      flex-shrink: 0;
+    }
+    .status-dot.connected { background: var(--green); }
+    .status-text { color: var(--text-sec); }
+
+    /* ── DROP ZONE ──────────────────────────────── */
+    #drop-zone {
+      background: var(--bg-card);
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: var(--accent);
+      background: #221F1B;
+    }
+    #drop-zone .drop-icon { font-size: 24px; opacity: 0.5; }
+    #drop-zone .drop-title { font-size: 12px; font-weight: 500; color: var(--text-main); }
+    #drop-zone .drop-sub { font-size: 10px; color: var(--text-sec); }
+    #file-input { display: none; }
+
+    /* ── UPLOAD THUMBS GRID ──────────────────────── */
+    #upload-thumbs-grid {
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    #upload-thumbs-grid.visible { display: grid; }
+    .upload-thumb {
+      position: relative;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      aspect-ratio: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+    }
+    .upload-thumb img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .upload-thumb-remove {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 20px; height: 20px;
+      background: rgba(0,0,0,0.75);
+      border: none;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .upload-thumb:hover .upload-thumb-remove { opacity: 1; }
+    .upload-thumb-remove:hover { background: rgba(229,115,115,0.9); }
+    .upload-thumb-num {
+      position: absolute;
+      bottom: 4px; left: 4px;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .upload-add-btn {
+      aspect-ratio: 1;
+      background: var(--bg-card);
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-sec);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .upload-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── PILL SELECTORS ─────────────────────────── */
+    .pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .pill {
+      padding: 5px 12px;
+      border-radius: 100px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .pill:hover { border-color: var(--accent); color: var(--text-main); }
+    .pill.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0F0E0D;
+    }
+
+    /* ── SKIN TONES ─────────────────────────────── */
+    .skin-group { display: flex; gap: 10px; align-items: center; }
+    .skin-btn {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .skin-btn:hover { transform: scale(1.1); }
+    .skin-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--bg-panel), 0 0 0 4px var(--accent); }
+    .skin-btn[title]::after {
+      content: attr(title);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: var(--text-main);
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .skin-btn:hover::after { opacity: 1; }
+
+    /* ── SELECT ─────────────────────────────────── */
+    .styled-select {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      padding: 9px 12px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237A6F66' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      transition: border-color 0.2s;
+    }
+    .styled-select:focus { border-color: var(--accent); }
+    .styled-select option { background: var(--bg-card); }
+
+    /* ── TOGGLE SWITCH ──────────────────────────── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toggle-label-block {}
+    .toggle-label-block .tl-title { font-size: 13px; font-weight: 500; color: var(--text-main); }
+    .toggle-label-block .tl-sub { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px; height: 24px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--border);
+      border-radius: 100px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 18px; height: 18px;
+      background: var(--text-sec);
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: var(--accent); }
+    .toggle-switch input:checked + .toggle-track::after {
+      left: 23px;
+      background: #0F0E0D;
+    }
+
+    /* ── VARIATIONS ─────────────────────────────── */
+    .var-group { display: flex; gap: 6px; }
+    .var-btn {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-sec);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .var-btn:hover { border-color: var(--accent); color: var(--text-main); }
+    .var-btn.active { background: var(--accent); border-color: var(--accent); color: #0F0E0D; }
+
+    /* ── GENERATE BUTTON ────────────────────────── */
+    #btn-generate {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      color: #0F0E0D;
+      font-family: var(--font-ui);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+    }
+    #btn-generate:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(212,184,150,0.3); }
+    #btn-generate:active:not(:disabled) { transform: translateY(0); }
+    #btn-generate:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #0F0E0D;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    #btn-generate.loading .btn-spinner { display: block; }
+    #btn-generate.loading .btn-text { display: none; }
+    #btn-generate.loading .btn-icon { display: none; }
+
+    /* ── PAINEL DIREITO ─────────────────────────── */
+    #result-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-main);
+    }
+
+    /* Top bar */
+    .result-topbar {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .result-topbar h2 { font-size: 14px; font-weight: 500; color: var(--text-sec); }
+
+    /* Result main area */
+    #result-area {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      display: flex;
+      flex-direction: column;
+    }
+    #result-area::-webkit-scrollbar { width: 4px; }
+    #result-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── EMPTY STATE ────────────────────────────── */
+    #state-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 40px;
+    }
+    .empty-icon {
+      width: 80px; height: 80px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+    #state-empty h3 { font-size: 20px; font-weight: 500; color: var(--text-main); }
+    #state-empty p { font-size: 13px; color: var(--text-sec); text-align: center; max-width: 320px; line-height: 1.6; }
+
+    /* ── LOADING STATE ──────────────────────────── */
+    #state-loading {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px;
+    }
+    .loader-ring {
+      width: 60px; height: 60px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    .loader-text {
+      font-size: 15px;
+      color: var(--text-sec);
+      font-style: italic;
+      letter-spacing: 0.3px;
+    }
+    .loader-dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+    }
+
+    /* ── RESULT STATE ───────────────────────────── */
+    #state-result {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+    .result-content { padding: 24px; flex: 1; }
+    .result-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    /* Image card */
+    .img-card {
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      position: relative;
+      group: '';
+      cursor: pointer;
+    }
+    .img-card img {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+    }
+    .img-card-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(transparent 60%, rgba(0,0,0,0.7));
+      opacity: 0;
+      transition: opacity 0.2s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px;
+    }
+    .img-card:hover .img-card-overlay { opacity: 1; }
+    .img-badge {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-main);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 100px;
+      backdrop-filter: blur(4px);
+    }
+    .overlay-btn {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      transition: background 0.15s;
+    }
+    .overlay-btn:hover { background: rgba(255,255,255,0.3); }
+
+    .result-actions {
+      padding: 0 24px 24px;
+      display: flex;
+      gap: 10px;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 11px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .action-btn.primary { background: var(--accent); color: #0F0E0D; border-color: var(--accent); }
+    .action-btn.primary:hover { background: var(--accent-hover); }
+
+    /* ── HISTORY ────────────────────────────────── */
+    #history-bar {
+      border-top: 1px solid var(--border);
+      padding: 12px 24px;
+      flex-shrink: 0;
+      display: none;
+    }
+    #history-bar.visible { display: block; }
+    .history-label { font-size: 10px; color: var(--text-sec); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+    .history-thumbs { display: flex; gap: 8px; }
+    .history-thumb {
+      width: 56px; height: 56px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .history-thumb:hover { border-color: var(--accent); }
+    .history-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ── MODAL ──────────────────────────────────── */
+    #modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 24px;
+      backdrop-filter: blur(6px);
+    }
+    #modal.open { display: flex; }
+    .modal-inner {
+      position: relative;
+      max-width: 90vw;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #modal-img {
+      max-width: 90vw;
+      max-height: 80vh;
+      object-fit: contain;
+      border-radius: var(--radius);
+      display: block;
+    }
+    .modal-top {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .modal-close {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.25); }
+    .modal-bottom { display: flex; justify-content: center; }
+    .modal-dl-btn {
+      padding: 10px 28px;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #0F0E0D;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+    .modal-dl-btn:hover { background: var(--accent-hover); }
+
+    /* ── TOASTS ─────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      top: 20px; right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9999;
+    }
+    .toast {
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 320px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      animation: slideIn 0.3s ease;
+    }
+    .toast.success { border-color: var(--green); }
+    .toast.error   { border-color: var(--red); }
+    .toast.info    { border-color: var(--accent); }
+    .toast-icon { font-size: 16px; flex-shrink: 0; }
+    .toast.hide { animation: slideOut 0.3s ease forwards; }
+
+    /* ── MOBILE HAMBURGER ───────────────────────── */
+    #mobile-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px; right: 20px;
+      z-index: 100;
+      width: 50px; height: 50px;
+      background: var(--accent);
+      border: none;
+      border-radius: 50%;
+      color: #0F0E0D;
+      font-size: 20px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(212,184,150,0.4);
+    }
+    #sidebar-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9;
+    }
+
+    /* ── DIVIDER ────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 0 -20px; }
+
+    /* ── ANIMATIONS ─────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to   { transform: translateX(120%); opacity: 0; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+
+    /* ── MOCK BADGE ─────────────────────────────── */
+    .mock-badge {
+      background: #F9A82520;
+      border: 1px solid #F9A82560;
+      color: #F9A825;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      display: none;
+      align-items: center;
+      gap: 5px;
+    }
+    .mock-badge.show { display: flex; }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 768px) {
+      html, body { overflow: auto; }
+      #app { flex-direction: column; overflow: visible; height: auto; }
+      #sidebar {
+        position: fixed;
+        top: 0; left: 0;
+        height: 100vh;
+        transform: translateX(-100%);
+        width: min(var(--panel-w), 100vw);
+        z-index: 100;
+      }
+      #sidebar.mobile-open { transform: translateX(0); }
+      #sidebar-overlay.visible { display: block; }
+      #result-panel { height: 100vh; }
+      #mobile-toggle { display: flex; }
+      .result-topbar { padding: 12px 16px; }
+    }
+
+    /* ── FORM ROWS ──────────────────────────────── */
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+
+    /* ── ADVANCED MODE HINT ─────────────────────── */
+    .advanced-hint {
+      font-size: 11px;
+      color: var(--text-sec);
+      padding: 8px 10px;
+      background: var(--bg-main);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      display: none;
+      line-height: 1.5;
+    }
+    #adv-toggle:checked ~ .advanced-hint { display: block; }
+    /* hack: use JS instead */
+    .advanced-hint.show { display: block; }
+
+    /* ── INPUT::PLACEHOLDER ─────────────────────── */
+    input::placeholder { color: var(--text-sec); opacity: 0.7; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════════
+       PAINEL ESQUERDO
+  ════════════════════════════════════════════════ -->
+  <aside id="sidebar">
+    <div class="sidebar-inner">
+
+      <!-- LOGO ROW -->
+      <div class="logo-row">
+        <div class="logo-block">
+          <div class="logo-name">VisualIA</div>
+          <div class="logo-sub">Produto → Modelo com IA</div>
+        </div>
+        <div class="mock-toggle" title="Modo Teste: funciona sem API Key real">
+          <span id="mock-label">Modo Teste</span>
+          <label class="toggle-switch" for="mock-mode-2" style="margin:0">
+            <input type="checkbox" id="mock-mode-2" />
+            <span class="toggle-track" style="background:#2A2520"></span>
+          </label>
+        </div>
+      </div>
+
+      <div id="mock-badge" class="mock-badge">
+        <span>⚠️</span> Modo Teste ativo — sem API real
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SEÇÃO 1 — API KEY (colapsável) -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" id="apikey-toggle-row">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="status-dot connected" id="status-dot"></span>
+            <span class="status-text" id="status-text" style="font-size:12px">Conectado</span>
+          </div>
+          <button id="apikey-toggle-btn" style="background:none;border:1px solid var(--border);border-radius:100px;color:var(--text-sec);font-size:11px;padding:3px 10px;cursor:pointer;font-family:var(--font-ui);transition:all 0.15s" title="Trocar API Key">
+            🔑 Trocar chave
+          </button>
+        </div>
+        <div id="apikey-section" style="display:none;margin-top:10px">
+          <div class="section-label">Google AI Studio API Key</div>
+          <div class="api-key-row">
+            <div class="input-wrap">
+              <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" aria-label="Google AI Studio API Key" />
+              <button class="eye-btn" id="eye-btn" aria-label="Mostrar/ocultar API key" title="Mostrar/ocultar">
+                <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:8px">
+            <button id="apikey-save-btn" style="flex:1;padding:7px;background:var(--accent);border:none;border-radius:var(--radius-sm);color:#0F0E0D;font-family:var(--font-ui);font-size:12px;font-weight:600;cursor:pointer">Salvar</button>
+            <button id="apikey-cancel-btn" style="flex:1;padding:7px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-sec);font-family:var(--font-ui);font-size:12px;cursor:pointer">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SEÇÃO 2 — UPLOAD MÚLTIPLO -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="section-label" style="margin-bottom:0">Fotos do Produto</div>
+          <span id="img-count-badge" style="display:none;font-size:10px;color:var(--accent);font-weight:600"></span>
+        </div>
+        <div id="drop-zone" role="button" aria-label="Adicionar fotos do produto" tabindex="0">
+          <div id="drop-content">
+            <div class="drop-icon">📷</div>
+            <div class="drop-title">Arraste ou clique para enviar</div>
+            <div class="drop-sub">JPG · PNG · WEBP · até 6 fotos do mesmo produto</div>
+          </div>
+        </div>
+        <div id="upload-thumbs-grid"></div>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple aria-label="Selecionar imagens" />
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SEÇÃO 3 — TIPO DE PRODUTO -->
+      <div>
+        <div class="section-label">Tipo de Produto</div>
+        <div class="pill-group" id="product-type-group">
+          <button class="pill active" data-value="roupa">👗 Roupa</button>
+          <button class="pill" data-value="moda-praia">👙 Moda Praia</button>
+          <button class="pill" data-value="calcado">👟 Calçado</button>
+          <button class="pill" data-value="bolsa">👜 Bolsa</button>
+          <button class="pill" data-value="joia">💍 Joia</button>
+          <button class="pill" data-value="acessorio">🕶️ Acessório</button>
+          <button class="pill" data-value="cosmetico">🧴 Cosmético</button>
+          <button class="pill" data-value="outro">📦 Outro</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SEÇÃO 4 — PERFIL DA MODELO -->
+      <div>
+        <div class="section-label">Perfil da Modelo</div>
+
+        <div class="form-row">
+          <label style="font-size:12px;color:var(--text-sec)">Estilo Visual</label>
+          <div class="pill-group" id="style-group">
+            <button class="pill active" data-value="Clean Studio">Clean Studio</button>
+            <button class="pill" data-value="Editorial Fashion">Editorial Fashion</button>
+            <button class="pill" data-value="Lifestyle Natural">Lifestyle Natural</button>
+            <button class="pill" data-value="Luxury Campaign">Luxury Campaign</button>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:14px">
+          <label for="body-type" style="font-size:12px;color:var(--text-sec)">Corpo / Tipo</label>
+          <select class="styled-select" id="body-type" aria-label="Corpo da modelo">
+            <option value="slim">Slim / Magra</option>
+            <option value="medium" selected>Médio / Natural</option>
+            <option value="plus">Curvilínea / Plus</option>
+            <option value="athletic">Atlético / Fitness</option>
+          </select>
+        </div>
+
+        <div class="form-row" style="margin-top:14px">
+          <label style="font-size:12px;color:var(--text-sec)">Tom de Pele</label>
+          <div class="skin-group" id="skin-group">
+            <button class="skin-btn active" data-value="very-light" title="Muito clara" style="background:#F8E0C8" aria-label="Tom de pele muito clara"></button>
+            <button class="skin-btn" data-value="light" title="Clara" style="background:#E8C49A" aria-label="Tom de pele clara"></button>
+            <button class="skin-btn" data-value="medium-light" title="Morena clara" style="background:#C8966C" aria-label="Tom de pele morena clara"></button>
+            <button class="skin-btn" data-value="medium" title="Morena" style="background:#9E6B45" aria-label="Tom de pele morena"></button>
+            <button class="skin-btn" data-value="dark" title="Negra" style="background:#4A2C1A" aria-label="Tom de pele negra"></button>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:14px">
+          <label for="scenario" style="font-size:12px;color:var(--text-sec)">Cenário / Fundo</label>
+          <select class="styled-select" id="scenario" aria-label="Cenário de fundo">
+            <option value="white-studio" selected>Fundo branco studio</option>
+            <option value="beige">Fundo bege/nude</option>
+            <option value="black">Fundo preto</option>
+            <option value="outdoor-clean">Ambiente externo clean</option>
+            <option value="indoor-luxury">Ambiente interno luxo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SEÇÃO 5 — CONFIGURAÇÕES DE GERAÇÃO -->
+      <div>
+        <div class="section-label">Configurações de Geração</div>
+
+        <div class="form-row">
+          <label style="font-size:12px;color:var(--text-sec)">Modelo de IA</label>
+          <div class="pill-group" id="model-group">
+            <button class="pill active" data-value="gemini-2.5-flash-image">⚡ Flash 2.5</button>
+            <button class="pill" data-value="gemini-3.1-flash-image-preview">💎 Flash 3.1</button>
+          </div>
+          <div style="font-size:10px;color:var(--text-sec);margin-top:4px" id="model-desc">Geração rápida — recomendado para testes</div>
+        </div>
+
+        <div class="form-row" style="margin-top:14px">
+          <label style="font-size:12px;color:var(--text-sec)">Resolução</label>
+          <div class="pill-group" id="resolution-group">
+            <button class="pill" data-value="512">512px</button>
+            <button class="pill active" data-value="1024">1K (1024px)</button>
+            <button class="pill" data-value="2048">2K (2048px)</button>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:14px">
+          <label style="font-size:12px;color:var(--text-sec)">Formato de Saída</label>
+          <div class="pill-group" id="format-group">
+            <button class="pill active" data-value="1:1">Quadrado 1:1</button>
+            <button class="pill" data-value="3:4">Retrato 3:4</button>
+            <button class="pill" data-value="9:16">Retrato 9:16</button>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:16px">
+          <div class="toggle-row">
+            <div class="toggle-label-block">
+              <div class="tl-title">Modo Avançado</div>
+              <div class="tl-sub" id="adv-sub-text">Geração rápida</div>
+            </div>
+            <label class="toggle-switch" aria-label="Modo Avançado">
+              <input type="checkbox" id="adv-toggle" />
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="advanced-hint" id="adv-hint">
+            ✨ <strong>Pensamento Avançado</strong> — usa inferência extra para máxima qualidade. Pode levar 2–4× mais tempo.
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top:14px">
+          <label style="font-size:12px;color:var(--text-sec)">Variações</label>
+          <div class="var-group" id="variations-group">
+            <button class="var-btn active" data-value="1" title="Frente">1 — Frente</button>
+            <button class="var-btn" data-value="2" title="Frente + Costas">2 — F+C</button>
+            <button class="var-btn" data-value="4" title="Frente · Meio de lado · Costas · Perfil">4 poses</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- BOTÃO GERAR -->
+      <button id="btn-generate" disabled aria-label="Gerar imagem com modelo">
+        <div class="btn-spinner"></div>
+        <span class="btn-icon">✨</span>
+        <span class="btn-text">Gerar com Modelo</span>
+      </button>
+
+    </div>
+  </aside>
+
+  <!-- Overlay mobile -->
+  <div id="sidebar-overlay"></div>
+
+  <!-- ═══════════════════════════════════════════════
+       PAINEL DIREITO
+  ════════════════════════════════════════════════ -->
+  <main id="result-panel">
+    <div class="result-topbar">
+      <h2>Resultado</h2>
+      <div id="result-topbar-right" style="display:flex;gap:10px;align-items:center">
+        <!-- gerado dinâmicamente -->
+      </div>
+    </div>
+
+    <div id="result-area">
+
+      <!-- Estado vazio -->
+      <div id="state-empty" style="display:flex">
+        <div class="empty-icon">✨</div>
+        <h3>Sua imagem aparecerá aqui</h3>
+        <p>Faça o upload do produto e configure a modelo para começar a gerar.</p>
+      </div>
+
+      <!-- Estado loading -->
+      <div id="state-loading">
+        <div class="loader-ring"></div>
+        <div class="loader-text" id="loader-msg">Analisando o produto<span class="loader-dots"></span></div>
+      </div>
+
+      <!-- Estado resultado -->
+      <div id="state-result">
+        <div class="result-content">
+          <div class="result-grid" id="result-grid"></div>
+        </div>
+        <div class="result-actions">
+          <button class="action-btn" id="btn-new">🔄 Nova Imagem</button>
+          <button class="action-btn" id="btn-dl-all" style="display:none">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:5px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Baixar Todos
+          </button>
+          <button class="action-btn primary" id="btn-regen">✨ Gerar Novamente</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Histórico -->
+    <div id="history-bar">
+      <div class="history-label">Histórico</div>
+      <div class="history-thumbs" id="history-thumbs"></div>
+    </div>
+  </main>
+
+</div>
+
+<!-- MOBILE TOGGLE -->
+<button id="mobile-toggle" aria-label="Abrir configurações">☰</button>
+
+<!-- MODAL -->
+<div id="modal" role="dialog" aria-modal="true" aria-label="Imagem ampliada">
+  <div class="modal-inner">
+    <div class="modal-top">
+      <button class="modal-close" id="modal-close" aria-label="Fechar">✕</button>
+    </div>
+    <img id="modal-img" src="" alt="Imagem ampliada" />
+    <div class="modal-bottom">
+      <button class="modal-dl-btn" id="modal-dl-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" aria-live="polite"></div>
+
+
+<script>
+// ============================================
+// ADAPTAR: Endpoint real do Nano Banana
+// Documentação: https://nanobanana.io/docs
+// ============================================
+// ============================================
+// API: Google AI Studio (Gemini)
+// Modelo: gemini-2.0-flash-preview-image-generation
+// Documentação: https://ai.google.dev/api/generate-content
+// ============================================
+const GEMINI_MODELS = {
+  flash: 'gemini-2.5-flash-image',
+  pro:   'gemini-3.1-flash-image-preview',
+};
+function getEndpoint() {
+  const model = state?.selectedModel || GEMINI_MODELS.flash;
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
+
+function buildHeaders(apiKey) {
+  return {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': apiKey,
+  };
+}
+
+function buildPayload({ prompt, imagesBase64, mimeTypes }) {
+  const imageParts = imagesBase64.map((b64, i) => ({
+    inline_data: {
+      mime_type: mimeTypes[i] || 'image/jpeg',
+      data: b64.includes(',') ? b64.split(',')[1] : b64,
+    }
+  }));
+  return {
+    contents: [{
+      parts: [
+        ...imageParts,
+        { text: prompt }
+      ]
+    }],
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+    }
+  };
+}
+
+// ============ ESTADO ============
+const state = {
+  apiKey: '',
+  imageFiles: [],
+  imagesBase64: [],
+  productType: 'roupa',
+  styleVisual: 'Clean Studio',
+  bodyType: 'medium',
+  skinTone: 'very-light',
+  scenario: 'white-studio',
+  resolution: 1024,
+  format: '1:1',
+  advanced: false,
+  variations: 1,
+  selectedModel: 'gemini-2.5-flash-image',
+  mockMode: false,
+  isLoading: false,
+  history: [],  // array de arrays de imageUrls
+  currentImages: [],
+};
+
+// ============ PROMPT ENGINE ============
+// Produtos que focam no item, não na modelo
+const PRODUTO_FOCO_ITEM = ['calcado', 'bolsa', 'joia', 'acessorio', 'cosmetico', 'outro'];
+
+const promptMap = {
+  produto: {
+    'roupa':      'wearing the garment, clothes clearly visible and well-fitted',
+    'moda-praia': 'wearing the beachwear, outfit fully visible',
+    'calcado':    'wearing the shoes',
+    'bolsa':      'holding the handbag',
+    'joia':       'wearing the jewelry piece',
+    'acessorio':  'wearing the accessory',
+    'cosmetico':  'holding the cosmetic product',
+    'outro':      'displaying the product',
+  },
+  estilo: {
+    'Clean Studio':       'clean studio photography, white seamless background, professional lighting',
+    'Editorial Fashion':  'editorial fashion photography, high fashion, magazine style',
+    'Lifestyle Natural':  'lifestyle photography, natural light, candid, authentic',
+    'Luxury Campaign':    'luxury brand campaign, dramatic lighting, sophisticated',
+  },
+  corpo: {
+    slim:     'slim body',
+    medium:   'natural body',
+    plus:     'plus-size body',
+    athletic: 'athletic body',
+  },
+  pele: {
+    'very-light':   'very fair skin',
+    'light':        'light skin',
+    'medium-light': 'light brown skin',
+    'medium':       'medium brown skin',
+    'dark':         'dark skin',
+  },
+  cenario: {
+    'white-studio':   'white studio background',
+    'beige':          'warm beige background',
+    'black':          'black background',
+    'outdoor-clean':  'clean outdoor setting',
+    'indoor-luxury':  'elegant interior',
+  },
+};
+
+function construirPrompt(cfg) {
+  const { tipoProduto, estiloVisual, corpoDaModelo, tomDePele, cenario, modoAvancado } = cfg;
+  const focoNoProduto = PRODUTO_FOCO_ITEM.includes(tipoProduto);
+  const qualityExtra = modoAvancado ? ', ultra detailed, award-winning commercial photography' : '';
+
+  // Instrução de múltiplas fotos
+  const n = state.imagesBase64.length;
+  const multiPhoto = n > 1
+    ? `${n} reference photos of the SAME product are provided showing different angles and details. Analyze ALL photos together to fully understand the product before generating. `
+    : '';
+
+  // Fidelidade ao produto — instrução base para todos os prompts
+  const fidelidadeProduto = `${multiPhoto}`
+    + `CRITICAL INSTRUCTION — PRODUCT ACCURACY IS THE TOP PRIORITY: `
+    + `You MUST reproduce the EXACT product shown in the reference photo with pixel-perfect fidelity. `
+    + `Count and replicate every single detail precisely: `
+    + `exact number of buttons (if there are 3 buttons, generate exactly 3 buttons — not 2, not 4, not 5), `
+    + `exact button color, size and placement, `
+    + `exact number of pockets and their position, `
+    + `exact collar shape, exact sleeve length, exact hem style, `
+    + `exact color and color blocking, exact prints and patterns (same scale, same repeat, same placement), `
+    + `exact stitching details, zippers, seams, embroidery, logos or text exactly as shown. `
+    + `Do NOT add, remove or modify ANY detail — not a single button, stripe, pocket or stitch. `
+    + `Do NOT "improve" or "idealize" the garment. `
+    + `The generated garment must be IDENTICAL to the reference photo — a customer must recognize it as the exact same product`;
+
+  if (focoNoProduto) {
+    const focoMap = {
+      'calcado':   'Close-up product photography of the exact shoes from reference, sharp focus on footwear details, texture, sole and stitching clearly visible, model legs softly out of focus in background, shallow depth of field',
+      'bolsa':     'Luxury product photography of the exact handbag from reference, sharp focus on the bag, stitching, hardware, material texture and shape clearly visible, model holding it with soft background blur',
+      'joia':      'Macro jewelry photography of the exact piece from reference, extreme close-up, metal finish and gems in sharp focus, sparkle and engravings clearly visible, soft skin background',
+      'acessorio': 'Product detail photography of the exact accessory from reference, sharp focus on item, material, hardware and craftsmanship clearly visible, model as soft background context',
+      'cosmetico': 'Beauty product photography of the exact cosmetic item from reference, product label and packaging in sharp focus, elegant presentation, model hands softly visible as context',
+      'outro':     'Commercial product photography of the exact item from reference, sharp focus, all details clearly visible, clean professional presentation',
+    };
+    return `${fidelidadeProduto}. `
+      + `${focoMap[tipoProduto] || focoMap['outro']}, `
+      + `${promptMap.cenario[cenario]}, ${promptMap.estilo[estiloVisual]}, `
+      + `high resolution, crisp details, product hero shot${qualityExtra}`;
+  }
+
+  // Prompt focado na modelo vestindo roupa
+  return `${fidelidadeProduto}. `
+    + `Brazilian fashion model ${promptMap.produto[tipoProduto] || 'displaying the product'}, `
+    + `${promptMap.corpo[corpoDaModelo]}, ${promptMap.pele[tomDePele]}, `
+    + `${promptMap.cenario[cenario]}, ${promptMap.estilo[estiloVisual]}, `
+    + `natural authentic look, real human features, slight natural skin imperfections, `
+    + `candid natural pose, not overly retouched, genuine expression, `
+    + `commercial photography, photorealistic, no distortion${qualityExtra}`;
+}
+
+function calcularDimensoes(format, resolution) {
+  const ratios = { '1:1': [1,1], '3:4': [3,4], '9:16': [9,16] };
+  const [rw, rh] = ratios[format] || [1,1];
+  const base = resolution;
+  if (rw >= rh) {
+    return { width: base, height: Math.round(base * rh / rw) };
+  } else {
+    return { width: Math.round(base * rw / rh), height: base };
+  }
+}
+
+// ============ MOCK ============
+function mockImageUrl(idx) {
+  // Placeholder com texto usando picsum + seed
+  const seeds = [42, 87, 13, 66];
+  const { width, height } = calcularDimensoes(state.format, state.resolution);
+  const w = Math.min(width, 600);
+  const h = Math.min(height, 800);
+  return `https://picsum.photos/seed/${seeds[idx] || idx + 10}/${w}/${h}`;
+}
+
+async function gerarMock() {
+  await delay(2500);
+  return Array.from({ length: state.variations }, (_, i) => mockImageUrl(i));
+}
+
+// ============ API CALL ============
+async function fazerUmaGeracao(prompt) {
+  console.log('[VisualIA] Iniciando geração...');
+  console.log('[VisualIA] Modelo:', state.selectedModel);
+  console.log('[VisualIA] Endpoint:', getEndpoint());
+  console.log('[VisualIA] mockMode:', state.mockMode);
+  console.log('[VisualIA] Fotos enviadas:', state.imagesBase64.length);
+
+  const payload = buildPayload({
+    prompt,
+    imagesBase64: state.imagesBase64,
+    mimeTypes: state.imageFiles.map(f => f.type || 'image/jpeg'),
+  });
+
+  // Timeout de 3 minutos
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+    console.error('[VisualIA] Timeout: a requisição demorou mais de 3min');
+  }, 180000);
+
+  console.log('[VisualIA] Fazendo fetch para a API...');
+  let response;
+  try {
+    response = await fetch(getEndpoint(), {
+      method:  'POST',
+      headers: buildHeaders(state.apiKey),
+      body:    JSON.stringify(payload),
+      signal:  controller.signal,
+    });
+  } catch (fetchErr) {
+    clearTimeout(timeoutId);
+    if (fetchErr.name === 'AbortError') {
+      throw new Error('A requisição demorou demais (timeout 90s). Tente uma imagem menor ou verifique sua conexão.');
+    }
+    throw new Error(`Falha de rede: ${fetchErr.message}`);
+  }
+  clearTimeout(timeoutId);
+
+  console.log('[VisualIA] Resposta recebida. Status:', response.status);
+
+  if (!response.ok) {
+    let msg = `Erro ${response.status}`;
+    try {
+      const err = await response.json();
+      msg = err.error?.message || err.message || JSON.stringify(err);
+    } catch {}
+    throw new Error(msg);
+  }
+
+  const data = await response.json();
+  console.log('[VisualIA] Dados recebidos:', JSON.stringify(data).slice(0, 200));
+
+  // Resposta do Gemini: candidates[0].content.parts[].inlineData
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const imagePart = parts.find(p => p.inlineData);
+  if (imagePart) {
+    const { mimeType: mt, data: b64 } = imagePart.inlineData;
+    console.log('[VisualIA] Imagem gerada com sucesso! mimeType:', mt);
+    return `data:${mt};base64,${b64}`;
+  }
+  const urlPart = parts.find(p => p.fileData?.fileUri);
+  if (urlPart) return urlPart.fileData.fileUri;
+
+  console.error('[VisualIA] Resposta inesperada:', JSON.stringify(data).slice(0, 500));
+  throw new Error('A API não retornou imagem. Verifique o console para detalhes.');
+}
+
+async function chamarAPI() {
+  console.log('[VisualIA] chamarAPI chamada. mockMode:', state.mockMode);
+  if (state.mockMode) return gerarMock();
+
+  const prompt = construirPrompt({
+    tipoProduto:   state.productType,
+    estiloVisual:  state.styleVisual,
+    corpoDaModelo: state.bodyType,
+    tomDePele:     state.skinTone,
+    cenario:       state.scenario,
+    modoAvancado:  state.advanced,
+  });
+
+  console.log('[VisualIA] Prompt base:', prompt);
+
+  // Poses por número de variações
+  const posesMap = {
+    1: ['facing the camera, front view, full body'],
+    2: ['facing the camera, front view, full body',
+        'turned showing the back, rear view, full body'],
+    4: ['facing the camera, front view, full body',
+        'three-quarter angle, slightly turned to the side',
+        'turned showing the back, rear view, full body',
+        'side profile view, full body'],
+  };
+  const poses = posesMap[state.variations] || posesMap[1];
+
+  const promises = poses.map(pose => {
+    const promptComPose = `${prompt}, model pose: ${pose}`;
+    console.log('[VisualIA] Pose:', pose);
+    return fazerUmaGeracao(promptComPose);
+  });
+  return Promise.all(promises);
+}
+
+// ============ UI HELPERS ============
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showToast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('hide');
+    toast.addEventListener('animationend', () => toast.remove());
+  }, 3000);
+}
+
+const loadingMessages = [
+  'Analisando o produto',
+  'Posicionando na modelo',
+  'Ajustando iluminação',
+  'Finalizando detalhes',
+];
+let loaderInterval;
+function startLoaderMessages() {
+  let i = 0;
+  const el = document.getElementById('loader-msg');
+  el.innerHTML = `${loadingMessages[0]}<span class="loader-dots"></span>`;
+  loaderInterval = setInterval(() => {
+    i = (i + 1) % loadingMessages.length;
+    el.innerHTML = `${loadingMessages[i]}<span class="loader-dots"></span>`;
+  }, 2200);
+}
+function stopLoaderMessages() {
+  clearInterval(loaderInterval);
+}
+
+function setPanel(name) {
+  document.getElementById('state-empty').style.display   = name === 'empty'   ? 'flex' : 'none';
+  document.getElementById('state-loading').style.display = name === 'loading' ? 'flex' : 'none';
+  document.getElementById('state-result').style.display  = name === 'result'  ? 'flex' : 'none';
+}
+
+function updateGenerateButton() {
+  const btn = document.getElementById('btn-generate');
+  const hasKey = state.mockMode || state.apiKey.trim().length > 0;
+  const hasImage = state.imagesBase64.length > 0;
+  btn.disabled = !hasKey || !hasImage || state.isLoading;
+}
+
+// ============ DOWNLOAD ============
+function downloadImage(url, filename) {
+  const a = document.createElement('a');
+  // Se for URL externa, abrir em nova aba
+  if (url.startsWith('http')) {
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+  } else {
+    a.href = url;
+    a.download = filename || 'visualia-modelo.png';
+  }
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// ============ RENDER RESULTS ============
+function renderResults(imageUrls) {
+  const grid = document.getElementById('result-grid');
+  grid.innerHTML = '';
+  const { width, height } = calcularDimensoes(state.format, state.resolution);
+  const badge = `${width}×${height}`;
+
+  imageUrls.forEach((url, idx) => {
+    const card = document.createElement('div');
+    card.className = 'img-card';
+
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = `Imagem gerada ${idx + 1}`;
+    img.style.aspectRatio = state.format.replace(':', '/');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'img-card-overlay';
+
+    // Botão download
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'overlay-btn';
+    dlBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    dlBtn.title = 'Download';
+    dlBtn.setAttribute('aria-label', 'Download da imagem');
+    dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadImage(url, `visualia-${idx+1}.png`); });
+
+    // Botão expandir
+    const expandBtn = document.createElement('button');
+    expandBtn.className = 'overlay-btn';
+    expandBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+    expandBtn.title = 'Expandir';
+    expandBtn.setAttribute('aria-label', 'Expandir imagem');
+    expandBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal(url); });
+
+    overlay.appendChild(dlBtn);
+    overlay.appendChild(expandBtn);
+
+    const badgeEl = document.createElement('div');
+    badgeEl.className = 'img-badge';
+    badgeEl.textContent = badge;
+
+    card.appendChild(img);
+    card.appendChild(overlay);
+    card.appendChild(badgeEl);
+    card.addEventListener('click', () => openModal(url));
+
+    grid.appendChild(card);
+  });
+
+  // Mostrar botão "Baixar Todos" só quando há mais de 1 imagem
+  const btnDlAll = document.getElementById('btn-dl-all');
+  btnDlAll.style.display = imageUrls.length > 1 ? 'flex' : 'none';
+
+  setPanel('result');
+}
+
+// ============ DOWNLOAD ZIP ============
+async function baixarTodos() {
+  const urls = state.currentImages;
+  if (!urls || urls.length === 0) return;
+
+  const btn = document.getElementById('btn-dl-all');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Compactando...';
+
+  try {
+    const zip = new JSZip();
+    const posesNomes = ['frente', 'costas', 'meio-de-lado', 'perfil'];
+
+    urls.forEach((url, idx) => {
+      // Extrair base64 puro
+      const base64 = url.includes(',') ? url.split(',')[1] : url;
+      const ext = url.includes('image/png') ? 'png' : 'jpg';
+      const nome = `visualia-${posesNomes[idx] || `foto-${idx + 1}`}.${ext}`;
+      zip.file(nome, base64, { base64: true });
+    });
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `visualia-${Date.now()}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    showToast('Download concluído!', 'success');
+  } catch (err) {
+    showToast('Erro ao compactar imagens.', 'error');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:5px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Baixar Todos';
+  }
+}
+
+// ============ HISTORY ============
+function addToHistory(imageUrls) {
+  state.history.unshift(imageUrls);
+  if (state.history.length > 4) state.history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const bar = document.getElementById('history-bar');
+  const thumbs = document.getElementById('history-thumbs');
+  if (state.history.length === 0) { bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  thumbs.innerHTML = '';
+
+  state.history.forEach((imgs, hi) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'history-thumb';
+    thumb.title = `Geração ${state.history.length - hi}`;
+    const img = document.createElement('img');
+    img.src = imgs[0];
+    img.alt = `Histórico ${hi+1}`;
+    thumb.appendChild(img);
+    thumb.addEventListener('click', () => {
+      state.currentImages = imgs;
+      renderResults(imgs);
+    });
+    thumbs.appendChild(thumb);
+  });
+}
+
+// ============ MODAL ============
+function openModal(url) {
+  const modal = document.getElementById('modal');
+  document.getElementById('modal-img').src = url;
+  document.getElementById('modal-dl-btn').onclick = () => downloadImage(url, 'visualia-modelo.png');
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ============ GERAR ============
+async function gerarImagem() {
+  if (state.isLoading) return;
+
+  if (!state.mockMode && !state.apiKey.trim()) {
+    showToast('Insira sua API Key para continuar', 'error'); return;
+  }
+  if (state.imagesBase64.length === 0) {
+    showToast('Faça upload de pelo menos uma foto do produto', 'error'); return;
+  }
+
+  state.isLoading = true;
+  const btn = document.getElementById('btn-generate');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  setPanel('loading');
+  startLoaderMessages();
+
+  try {
+    const imageUrls = await chamarAPI();
+    state.currentImages = imageUrls;
+    addToHistory(imageUrls);
+    renderResults(imageUrls);
+    showToast(`${imageUrls.length} imagem(ns) gerada(s) com sucesso!`, 'success');
+  } catch (err) {
+    setPanel('empty');
+    showToast(`Erro: ${err.message}`, 'error');
+    console.error(err);
+  } finally {
+    stopLoaderMessages();
+    state.isLoading = false;
+    btn.classList.remove('loading');
+    updateGenerateButton();
+  }
+}
+
+// ============ FILE UPLOAD ============
+const MAX_FOTOS = 6;
+
+function renderThumbs() {
+  const grid = document.getElementById('upload-thumbs-grid');
+  const badge = document.getElementById('img-count-badge');
+  const n = state.imagesBase64.length;
+
+  grid.innerHTML = '';
+
+  if (n === 0) {
+    grid.classList.remove('visible');
+    badge.style.display = 'none';
+    document.getElementById('drop-content').querySelector('.drop-sub').textContent = 'JPG · PNG · WEBP · até 6 fotos do mesmo produto';
+    return;
+  }
+
+  grid.classList.add('visible');
+  badge.style.display = 'inline';
+  badge.textContent = `${n} foto${n > 1 ? 's' : ''} adicionada${n > 1 ? 's' : ''}`;
+
+  state.imagesBase64.forEach((b64, idx) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'upload-thumb';
+
+    const img = document.createElement('img');
+    img.src = b64;
+    img.alt = `Foto ${idx + 1}`;
+
+    const num = document.createElement('div');
+    num.className = 'upload-thumb-num';
+    num.textContent = `${idx + 1}`;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'upload-thumb-remove';
+    removeBtn.innerHTML = '✕';
+    removeBtn.title = 'Remover esta foto';
+    removeBtn.setAttribute('aria-label', `Remover foto ${idx + 1}`);
+    removeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeImageAt(idx); });
+
+    thumb.appendChild(img);
+    thumb.appendChild(num);
+    thumb.appendChild(removeBtn);
+    grid.appendChild(thumb);
+  });
+
+  // Botão "+" para adicionar mais (se não chegou no limite)
+  if (n < MAX_FOTOS) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'upload-add-btn';
+    addBtn.innerHTML = '+';
+    addBtn.title = 'Adicionar mais uma foto';
+    addBtn.setAttribute('aria-label', 'Adicionar foto');
+    addBtn.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('file-input').click(); });
+    grid.appendChild(addBtn);
+  }
+}
+
+function handleFiles(files) {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  const validas = Array.from(files).filter(f => allowed.includes(f.type));
+
+  if (validas.length === 0) {
+    showToast('Formato inválido. Use JPG, PNG ou WEBP.', 'error');
+    return;
+  }
+
+  const disponiveis = MAX_FOTOS - state.imagesBase64.length;
+  const paraAdicionar = validas.slice(0, disponiveis);
+  const ignoradas = validas.length - paraAdicionar.length;
+
+  if (ignoradas > 0) showToast(`Limite de ${MAX_FOTOS} fotos atingido. ${ignoradas} foto(s) ignorada(s).`, 'info');
+
+  let carregadas = 0;
+  paraAdicionar.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      state.imageFiles.push(file);
+      state.imagesBase64.push(e.target.result);
+      carregadas++;
+      if (carregadas === paraAdicionar.length) {
+        renderThumbs();
+        updateGenerateButton();
+        showToast(`${carregadas} foto${carregadas > 1 ? 's' : ''} adicionada${carregadas > 1 ? 's' : ''}!`, 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeImageAt(idx) {
+  state.imageFiles.splice(idx, 1);
+  state.imagesBase64.splice(idx, 1);
+  renderThumbs();
+  updateGenerateButton();
+  document.getElementById('file-input').value = '';
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ============ PILL GROUPS ============
+function setupPillGroup(groupId, stateKey) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state[stateKey] = btn.dataset.value;
+    });
+  });
+}
+
+function setupVarGroup() {
+  const group = document.getElementById('variations-group');
+  group.querySelectorAll('.var-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.var-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.variations = parseInt(btn.dataset.value);
+    });
+  });
+}
+
+function setupSkinGroup() {
+  const group = document.getElementById('skin-group');
+  group.querySelectorAll('.skin-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.skinTone = btn.dataset.value;
+    });
+  });
+}
+
+// ============ INIT ============
+// Sem chave padrão embutida: cada visitante cola sua própria API key (ver seção "Trocar API Key").
+const DEFAULT_API_KEY = '';
+
+function init() {
+  const savedKey = localStorage.getItem('nb_api_key') || DEFAULT_API_KEY;
+  state.apiKey = savedKey;
+  document.getElementById('api-key-input').value = savedKey;
+  updateApiStatus(savedKey.length > 0);
+
+  // API Key — toggle section
+  const apikeySection = document.getElementById('apikey-section');
+  document.getElementById('apikey-toggle-btn').addEventListener('click', () => {
+    apikeySection.style.display = apikeySection.style.display === 'none' ? 'block' : 'none';
+  });
+  document.getElementById('apikey-cancel-btn').addEventListener('click', () => {
+    document.getElementById('api-key-input').value = state.apiKey;
+    apikeySection.style.display = 'none';
+  });
+  document.getElementById('apikey-save-btn').addEventListener('click', () => {
+    const val = document.getElementById('api-key-input').value.trim();
+    if (!val) { showToast('Digite uma API Key válida', 'error'); return; }
+    state.apiKey = val;
+    localStorage.setItem('nb_api_key', val);
+    updateApiStatus(true);
+    updateGenerateButton();
+    apikeySection.style.display = 'none';
+    showToast('API Key salva!', 'success');
+  });
+
+  // API Key input
+  const apiInput = document.getElementById('api-key-input');
+  apiInput.addEventListener('input', () => {
+    updateApiStatus(apiInput.value.trim().length > 0);
+  });
+
+  // Eye button
+  document.getElementById('eye-btn').addEventListener('click', () => {
+    const input = document.getElementById('api-key-input');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+
+  // Mock mode toggle
+  const mockToggle2 = document.getElementById('mock-mode-2');
+  mockToggle2.addEventListener('change', () => {
+    state.mockMode = mockToggle2.checked;
+    document.getElementById('mock-badge').classList.toggle('show', state.mockMode);
+    document.getElementById('mock-label').classList.toggle('active-label', state.mockMode);
+    updateApiStatus(state.apiKey.length > 0);
+    updateGenerateButton();
+    if (state.mockMode) showToast('Modo Teste ativado — não consome créditos', 'info');
+  });
+
+  // Drop zone
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  dropZone.addEventListener('click', () => {
+    if (state.imagesBase64.length < MAX_FOTOS) fileInput.click();
+  });
+  dropZone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+  });
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) handleFiles(e.target.files);
+    fileInput.value = '';
+  });
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  });
+
+  // Pill groups
+  setupPillGroup('product-type-group', 'productType');
+  setupPillGroup('style-group', 'styleVisual');
+  setupPillGroup('resolution-group', 'resolution');
+  setupPillGroup('format-group', 'format');
+  setupVarGroup();
+  setupSkinGroup();
+
+  // Seletor de modelo
+  const modelDescriptions = {
+    'gemini-2.5-flash-image':         '⚡ Recomendado — rápido e sem marca d\'água',
+    'gemini-3.1-flash-image-preview': '💎 Mais avançado — pode ser mais lento',
+  };
+  document.getElementById('model-group').querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('model-group').querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.selectedModel = btn.dataset.value;
+      document.getElementById('model-desc').textContent = modelDescriptions[btn.dataset.value] || '';
+    });
+  });
+
+  // Selects
+  document.getElementById('body-type').addEventListener('change', (e) => {
+    state.bodyType = e.target.value;
+  });
+  document.getElementById('scenario').addEventListener('change', (e) => {
+    state.scenario = e.target.value;
+  });
+
+  // Advanced toggle
+  document.getElementById('adv-toggle').addEventListener('change', (e) => {
+    state.advanced = e.target.checked;
+    document.getElementById('adv-sub-text').textContent = state.advanced
+      ? 'Pensamento Avançado (mais lento)'
+      : 'Geração rápida';
+    document.getElementById('adv-hint').classList.toggle('show', state.advanced);
+  });
+
+  // Generate button
+  document.getElementById('btn-generate').addEventListener('click', gerarImagem);
+
+  // Result actions
+  document.getElementById('btn-regen').addEventListener('click', gerarImagem);
+  document.getElementById('btn-dl-all').addEventListener('click', baixarTodos);
+  document.getElementById('btn-new').addEventListener('click', () => {
+    state.imageFiles = [];
+    state.imagesBase64 = [];
+    renderThumbs();
+    updateGenerateButton();
+    setPanel('empty');
+    state.currentImages = [];
+  });
+
+  // Modal
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // Mobile toggle
+  document.getElementById('mobile-toggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('mobile-open');
+    document.getElementById('sidebar-overlay').classList.toggle('visible');
+  });
+  document.getElementById('sidebar-overlay').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.remove('mobile-open');
+    document.getElementById('sidebar-overlay').classList.remove('visible');
+  });
+
+  updateGenerateButton();
+}
+
+function updateApiStatus(connected) {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  if (state.mockMode) {
+    dot.className = 'status-dot';
+    dot.style.background = '#F9A825';
+    text.textContent = 'Modo Teste ativo';
+    return;
+  }
+  dot.style.background = '';
+  if (connected) {
+    dot.className = 'status-dot connected';
+    text.textContent = 'Conectado';
+  } else {
+    dot.className = 'status-dot';
+    text.textContent = 'Sem chave configurada';
+  }
+}
+
+// Fix: resolution pill stores string, need int
+document.addEventListener('DOMContentLoaded', () => {
+  // Override resolution pill group to store int
+  const resGroup = document.getElementById('resolution-group');
+  resGroup.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.resolution = parseInt(btn.dataset.value);
+    });
+  });
+  // format group stores string as-is
+  const fmtGroup = document.getElementById('format-group');
+  fmtGroup.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.format = btn.dataset.value;
+    });
+  });
+
+  init();
+});
+</script>
+</body>
+</html>
